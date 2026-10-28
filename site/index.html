@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Flame's Repo</title>
+  <meta name="description" content="Jailbreak tweaks by flameaway. Add this repo to Sileo or Zebra to install and get updates.">
+  <link rel="icon" href="CydiaIcon.png">
+  <link rel="apple-touch-icon" href="CydiaIcon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="hero">
+      <img class="repo-icon" src="CydiaIcon.png" alt="" width="96" height="96">
+      <h1 id="repo-name">Flame's Repo</h1>
+      <p id="repo-description" class="muted">Jailbreak tweaks by flameaway.</p>
+
+      <div class="add-buttons">
+        <a class="btn btn-primary" data-scheme="sileo" href="#">
+          <span class="btn-title">Add to Sileo</span>
+        </a>
+        <a class="btn btn-zebra" data-scheme="zebra" href="#">
+          <span class="btn-title">Add to Zebra</span>
+        </a>
+      </div>
+      <div class="add-more">
+        <a data-scheme="cydia" href="#">Cydia</a>
+        <span aria-hidden="true">·</span>
+        <a data-scheme="installer" href="#">Installer</a>
+      </div>
+
+      <div class="url-box">
+        <code id="repo-url">https://flameaway.github.io/repo/</code>
+        <button id="copy" type="button">Copy</button>
+      </div>
+      <p class="hint muted">The buttons open your package manager on this device. On another device, add the URL above under Sources.</p>
+    </header>
+
+    <section>
+      <h2>Packages</h2>
+      <ul id="packages" class="packages">
+        <li class="muted">Loading…</li>
+      </ul>
+    </section>
+
+    <footer class="muted">
+      <a id="github" href="https://github.com/flameaway">GitHub</a>
+      <span aria-hidden="true">·</span>
+      <a href="Packages">Packages</a>
+      <span aria-hidden="true">·</span>
+      <a href="Release">Release</a>
+    </footer>
+  </main>
+  <script src="app.js"></script>
+  <script>renderIndex();</script>
+</body>
+</html>
