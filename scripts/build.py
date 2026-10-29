@@ -2,7 +2,8 @@
 """Build the APT repo into _site/.
 
 Scans debs/ (plus _sources/debs/ from sync.py) with dpkg-scanpackages, adds
-depiction and icon fields, writes Packages (plain and compressed), Release,
+depiction and icon fields, points packages from sync.py at their GitHub release
+downloads (_sources/urls.json) so the releases count installs, writes Packages (plain and compressed), Release,
 Sileo native depictions and packages.json for the website, then copies the
 site, debs and artwork. Listings come from meta/ and _sources/meta/.
 
@@ -24,8 +25,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "_site"
-# Packages added by hand, then the ones sync.py pulled from tweak releases.
-DEB_DIRS = [ROOT / "debs", ROOT / "_sources" / "debs"]
+SOURCES = ROOT / "_sources"
 META_DIRS = [ROOT / "meta", ROOT / "_sources" / "meta"]
 
 
@@ -42,6 +42,12 @@ def parse_stanzas(text):
         if fields:
             stanzas.append(fields)
     return stanzas
+
+
+def scan_debs(cwd):
+    scanned = subprocess.run(["dpkg-scanpackages", "-m", "debs", "/dev/null"], cwd=cwd,
+                             check=True, capture_output=True, text=True).stdout
+    return parse_stanzas(scanned)
 
 
 def format_stanza(fields):
@@ -103,6 +109,30 @@ def asset(base, package, name):
     return f"{base}meta/{package}/{name}" if meta_file(package, name) else None
 
 
+def image_size(path):
+    """Width and height of a PNG or JPEG, or None."""
+    with open(path, "rb") as f:
+        data = f.read()
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+    i = 2
+    while data[:2] == b"\xff\xd8" and i + 9 < len(data):
+        marker, length = data[i + 1], int.from_bytes(data[i + 2:i + 4], "big")
+        if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+            return int.from_bytes(data[i + 7:i + 9], "big"), int.from_bytes(data[i + 5:i + 7], "big")
+        i += 2 + length
+    return None
+
+
+def screenshot_item_size(package, shots):
+    """Sileo shows every screenshot at one size, so fit them to the first one's shape."""
+    size = image_size(meta_file(package, shots[0]["file"]))
+    w, h = size or (1179, 2556)
+    if h > w:
+        return f"{{{round(346 * w / h)}, 346}}"
+    return f"{{300, {round(300 * h / w)}}}"
+
+
 def sileo_depiction(base, repo, pkg, versions, meta):
     package = pkg["Package"]
     details = [{"class": "DepictionMarkdownView", "markdown": meta.get("description") or pkg.get("Description", ""), "useSpacing": True}]
@@ -111,7 +141,7 @@ def sileo_depiction(base, repo, pkg, versions, meta):
         details.append({
             "class": "DepictionScreenshotsView",
             "itemCornerRadius": 10,
-            "itemSize": "{300, 173}",
+            "itemSize": screenshot_item_size(package, shots),
             "screenshots": [{"url": asset(base, package, s["file"]), "accessibilityText": s.get("alt", "")} for s in shots],
         })
     details.append({"class": "DepictionSeparatorView"})
@@ -154,19 +184,23 @@ def main():
     if OUT.exists():
         shutil.rmtree(OUT)
     shutil.copytree(ROOT / "site", OUT)
+    # Packages added by hand are served from the site; the ones sync.py pulled
+    # are downloaded from their GitHub releases.
     (OUT / "debs").mkdir()
-    for d in DEB_DIRS:
-        for deb in sorted(d.glob("*.deb")) if d.exists() else []:
-            shutil.copy2(deb, OUT / "debs")
+    for deb in sorted((ROOT / "debs").glob("*.deb")):
+        shutil.copy2(deb, OUT / "debs")
     for d in META_DIRS:
         if d.exists():
             shutil.copytree(d, OUT / "meta", ignore=shutil.ignore_patterns("info.json"), dirs_exist_ok=True)
     (OUT / ".nojekyll").touch()
     (OUT / "depictions").mkdir()
 
-    scanned = subprocess.run(["dpkg-scanpackages", "-m", "debs", "/dev/null"], cwd=OUT,
-                             check=True, capture_output=True, text=True).stdout
-    stanzas = parse_stanzas(scanned)
+    stanzas = scan_debs(OUT)
+    if (SOURCES / "debs").exists():
+        urls = json.loads((SOURCES / "urls.json").read_text())
+        for s in scan_debs(SOURCES):
+            s["Filename"] = urls[Path(s["Filename"]).name]
+            stanzas.append(s)
     stanzas.sort(key=lambda s: (s["Package"], version_key(s["Version"])))
 
     by_package = {}

@@ -9,6 +9,11 @@ info.json points to (paths in that repo). Release notes become the changelog.
 Only packages in the latest release are published; older releases add older
 versions of those, so a renamed package's old ID drops out.
 
+Each .deb's release download URL goes in _sources/urls.json, so build.py points
+the Packages file straight at GitHub and the releases' download counts track
+installs. The .debs themselves are kept in .asset-cache/ by asset ID (the
+workflow caches it between runs), so the hourly sync doesn't add downloads.
+
 build.py then publishes these alongside anything in debs/ and meta/.
 
 Set GITHUB_TOKEN to avoid the API's rate limit for anonymous requests.
@@ -25,6 +30,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "_sources"
+CACHE = ROOT / ".asset-cache"
 
 
 def fetch(url, accept=None):
@@ -51,7 +57,15 @@ def deb_field(path, field):
     return subprocess.run(["dpkg-deb", "-f", str(path), field], check=True, capture_output=True, text=True).stdout.strip()
 
 
-def sync_source(source):
+def release_asset(item):
+    """The asset's bytes, downloaded only the first time this asset ID is seen."""
+    cached = CACHE / f"{item['id']}.deb"
+    if not cached.exists():
+        cached.write_bytes(fetch(item["browser_download_url"]))
+    return cached
+
+
+def sync_source(source, urls, used):
     releases = json.loads(fetch(f"https://api.github.com/repos/{source}/releases?per_page=100"))
     releases = [r for r in releases if not r["draft"] and not r["prerelease"]]
     if not releases:
@@ -68,13 +82,16 @@ def sync_source(source):
             if not item["name"].endswith(".deb"):
                 continue
             path = OUT / "debs" / item["name"]
-            path.write_bytes(fetch(item["browser_download_url"]))
+            cached = release_asset(item)
+            used.add(cached)
+            shutil.copyfile(cached, path)
             package, version = deb_field(path, "Package"), deb_field(path, "Version")
             if current is not None and package not in current:
                 path.unlink()
                 print(f"{source}: skipping {item['name']}, not in the latest release")
                 continue
             found.add(package)
+            urls[item["name"]] = item["browser_download_url"]
             latest_package = latest_package or package
             notes = (release.get("body") or "").strip()
             if notes:
@@ -119,8 +136,13 @@ def main():
         shutil.rmtree(OUT)
     (OUT / "debs").mkdir(parents=True)
     (OUT / "meta").mkdir()
+    CACHE.mkdir(exist_ok=True)
+    urls, used = {}, set()
     for source in repo.get("sources", []):
-        sync_source(source)
+        sync_source(source, urls, used)
+    (OUT / "urls.json").write_text(json.dumps(urls, indent=2))
+    for stale in set(CACHE.glob("*.deb")) - used:
+        stale.unlink()
 
 
 if __name__ == "__main__":

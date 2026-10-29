@@ -127,7 +127,10 @@ function renderDepiction(id) {
         ${
           p.screenshots.length
             ? `<div class="screenshots">${p.screenshots
-                .map((s) => `<img src="${escapeHTML(s.url)}" alt="${escapeHTML(s.alt)}" loading="lazy">`)
+                .map(
+                  (s) =>
+                    `<a href="${escapeHTML(s.url)}" target="_blank"><img src="${escapeHTML(s.url)}" alt="${escapeHTML(s.alt)}" loading="lazy"></a>`
+                )
                 .join("")}</div>`
             : ""
         }

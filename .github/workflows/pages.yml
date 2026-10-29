@@ -30,10 +30,22 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dpkg-dev and zstd
         run: sudo apt-get update -qq && sudo apt-get install -y -qq dpkg-dev zstd
+      # Release .debs already downloaded, so the hourly sync doesn't add to their download counts.
+      - id: restore-assets
+        uses: actions/cache/restore@v4
+        with:
+          path: .asset-cache
+          key: release-assets-
+          restore-keys: release-assets-
       - name: Pull tweak releases
         run: python3 scripts/sync.py
         env:
           GITHUB_TOKEN: ${{ github.token }}
+      - if: steps.restore-assets.outputs.cache-matched-key != format('release-assets-{0}', hashFiles('.asset-cache/*.deb'))
+        uses: actions/cache/save@v4
+        with:
+          path: .asset-cache
+          key: release-assets-${{ hashFiles('.asset-cache/*.deb') }}
       - name: Build repo
         run: python3 scripts/build.py
       - uses: actions/upload-pages-artifact@v3
