@@ -5,7 +5,7 @@ For each source (a GitHub repo such as "flameaway/peel") this downloads the .deb
 attached to its published releases into _sources/debs/, and builds
 _sources/meta/<package>/ from the repo's listing/ folder at its latest release:
 listing/info.json, listing/icon.png, and the header and screenshot files
-info.json points to (paths in that repo). Release notes become the changelog.
+info.json points to (paths in that repo).
 Only packages in the latest release are published; older releases add older
 versions of those, so a renamed package's old ID drops out.
 
@@ -72,8 +72,6 @@ def sync_source(source, urls, used):
         print(f"{source}: no releases")
         return
 
-    # package -> {version: release notes}
-    changelogs = {}
     latest_package = None
     current = None  # the packages in the latest release with any
     for release in releases:  # newest first
@@ -85,7 +83,7 @@ def sync_source(source, urls, used):
             cached = release_asset(item)
             used.add(cached)
             shutil.copyfile(cached, path)
-            package, version = deb_field(path, "Package"), deb_field(path, "Version")
+            package = deb_field(path, "Package")
             if current is not None and package not in current:
                 path.unlink()
                 print(f"{source}: skipping {item['name']}, not in the latest release")
@@ -93,9 +91,6 @@ def sync_source(source, urls, used):
             found.add(package)
             urls[item["name"]] = item["browser_download_url"]
             latest_package = latest_package or package
-            notes = (release.get("body") or "").strip()
-            if notes:
-                changelogs.setdefault(package, {})[version] = notes
             print(f"{source}: {item['name']}")
         if found and current is None:
             current = found
@@ -124,8 +119,6 @@ def sync_source(source, urls, used):
         (meta / name).write_bytes(fetch(raw + shot["file"]))
         screenshots.append({**shot, "file": name})
     info["screenshots"] = screenshots
-    # Release notes fill in versions the listing's own changelog doesn't mention.
-    info["changelog"] = {**changelogs.get(latest_package, {}), **info.get("changelog", {})}
     (meta / "info.json").write_text(json.dumps(info, indent=2, ensure_ascii=False))
     print(f"{source}: listing for {latest_package} from {tag}")
 

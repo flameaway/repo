@@ -30,7 +30,7 @@ To publish right away instead of waiting for the hourly run, start the workflow 
 2. In the tweak's repo, add a `listing/` folder: `info.json` (see below) and a square `icon.png`.
 3. Publish a release with the `.deb` attached.
 
-The store listing is read from `listing/` at the tweak's latest release tag, so it always matches the published version. Release notes become the changelog.
+The store listing is read from `listing/` at the tweak's latest release tag, so it always matches the published version.
 
 ### Packages not on GitHub
 
@@ -60,11 +60,11 @@ The build runs `dpkg-scanpackages`, adds `Depiction`, `SileoDepiction` and `Icon
   "source": "https://github.com/flameaway/peel",
   "header": "docs/images/hero.png",
   "screenshots": [{"file": "listing/screenshots/1-keyboard.jpg", "alt": "..."}],
-  "changelog": {"1.7.0": "- What changed"}
+  "changelog": {"1.0.0": "- What changed"}
 }
 ```
 
-In a tweak's `listing/info.json`, `header` and screenshot `file`s are paths in the tweak's repo, and `changelog` is optional (release notes fill it in). In `meta/<package>/info.json` they're file names next to it, the header is always `header.png`, and there's no `header` field.
+In a tweak's `listing/info.json`, `header` and screenshot `file`s are paths in the tweak's repo, and `changelog` is optional (release notes aren't used, so there's no Changelog tab unless you write one). In `meta/<package>/info.json` they're file names next to it, the header is always `header.png`, and there's no `header` field.
 
 Give each screen its own screenshot (a plain PNG or JPEG of the whole screen, not several phones in one image) so people can tap it to see it full screen in Sileo, Zebra and on the website. The depiction sizes the thumbnails from the first screenshot's shape.
 
