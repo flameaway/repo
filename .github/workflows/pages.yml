@@ -3,6 +3,12 @@ name: Build and deploy repo
 on:
   push:
     branches: [main]
+  # Picks up new releases of the tweaks in repo.json's "sources".
+  schedule:
+    - cron: "17 * * * *"
+  # A tweak's release workflow can trigger this right away instead of waiting for the schedule.
+  repository_dispatch:
+    types: [tweak-released]
   workflow_dispatch:
 
 permissions:
@@ -24,6 +30,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dpkg-dev and zstd
         run: sudo apt-get update -qq && sudo apt-get install -y -qq dpkg-dev zstd
+      - name: Pull tweak releases
+        run: python3 scripts/sync.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Build repo
         run: python3 scripts/build.py
       - uses: actions/upload-pages-artifact@v3

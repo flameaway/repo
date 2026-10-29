@@ -8,34 +8,40 @@ Open **[flameaway.github.io/repo](https://flameaway.github.io/repo/)** on your j
 
 | Package | Description |
 | --- | --- |
-| [Peel](https://github.com/flameaway/peel) (`com.josh.stickers`) | iOS 17-style stickers on iOS 16 |
+| [Peel](https://github.com/flameaway/peel) (`com.flame.stickers`) | iOS 17-style stickers on iOS 16 |
 
 ## Publishing an update
 
-1. Copy the new `.deb` into `debs/` (keep older versions if you want people to be able to downgrade, or delete them).
-2. Optionally add a changelog entry to `meta/<package>/info.json`.
-3. Commit and push:
+Tweaks listed under `sources` in `repo.json` publish themselves: create a GitHub release in the tweak's repo with the `.deb` attached (Peel's `make release` does this). Every hour, and on every push here, GitHub Actions (`.github/workflows/pages.yml`) runs `scripts/sync.py`, which downloads the `.deb` from each release, then rebuilds the indexes and deploys the site. Sileo and Zebra pick up the new version the next time they refresh sources.
 
-   ```sh
-   cp ../stickers/packages/com.josh.stickers_1.7.0_iphoneos-arm64.deb debs/
-   git add debs meta && git commit -m "Peel 1.7.0" && git push
-   ```
+To publish right away instead of waiting for the hourly run, start the workflow from the Actions tab, or send a `tweak-released` [repository dispatch](https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event) from the tweak's own release workflow (that needs an access token with access to this repo).
 
-GitHub Actions (`.github/workflows/pages.yml`) rebuilds the indexes and deploys the site. Sileo and Zebra pick up the new version the next time they refresh sources.
+### Adding a tweak
+
+1. Add its GitHub repo (`owner/name`) to `sources` in `repo.json`.
+2. In the tweak's repo, add a `listing/` folder: `info.json` (see below) and a square `icon.png`.
+3. Publish a release with the `.deb` attached.
+
+The store listing is read from `listing/` at the tweak's latest release tag, so it always matches the published version. Release notes become the changelog.
+
+### Packages not on GitHub
+
+Drop the `.deb` into `debs/` and, optionally, its listing into `meta/<package>/` (`info.json` plus `icon.png`, `header.png` and screenshot images next to it), then commit and push.
 
 ## Layout
 
 | Path | What it is |
 | --- | --- |
-| `debs/` | The packages. Every `.deb` here is published. |
-| `meta/<package>/` | Optional per-package extras: `info.json` (display name, tagline, long description, compatibility, source link, screenshots, changelog) plus `icon.png`, `header.png` and screenshot images. |
-| `repo.json` | Repo name, description, public URL and tint color. |
+| `debs/` | Packages added by hand. Every `.deb` here is published. |
+| `meta/<package>/` | Listings for packages added by hand: `info.json` (display name, tagline, long description, compatibility, source link, screenshots, changelog) plus `icon.png`, `header.png` and screenshot images. |
+| `repo.json` | Repo name, description, public URL, tint color, and `sources`: the GitHub repos of tweaks that publish through releases. |
 | `site/` | The website: landing page with the add buttons, and the web depiction page. |
+| `scripts/sync.py` | Downloads the `.deb` and listing of every tweak in `sources` into `_sources/`. |
 | `scripts/build.py` | Builds everything into `_site/`. |
 
 The build runs `dpkg-scanpackages`, adds `Depiction`, `SileoDepiction` and `Icon` fields to each package, writes `Packages` (plain, `.gz`, `.bz2`, `.xz`, `.zst`) and `Release`, generates a Sileo native depiction per package in `depictions/`, and writes `packages.json` for the website.
 
-### `meta/<package>/info.json`
+### `info.json`
 
 ```json
 {
@@ -44,16 +50,20 @@ The build runs `dpkg-scanpackages`, adds `Depiction`, `SileoDepiction` and `Icon
   "description": "Markdown shown in the depiction.",
   "compatibility": "iOS 15 – 16 (rootless)",
   "source": "https://github.com/flameaway/peel",
-  "screenshots": [{"file": "screenshot-1.png", "alt": "..."}],
+  "header": "docs/images/hero.png",
+  "screenshots": [{"file": "docs/images/showcase-light.png", "alt": "..."}],
   "changelog": {"1.7.0": "- What changed"}
 }
 ```
+
+In a tweak's `listing/info.json`, `header` and screenshot `file`s are paths in the tweak's repo, and `changelog` is optional (release notes fill it in). In `meta/<package>/info.json` they're file names next to it, the header is always `header.png`, and there's no `header` field.
 
 ## Building locally
 
 Needs Python 3 and `dpkg-scanpackages` (`brew install dpkg` on macOS).
 
 ```sh
+python3 scripts/sync.py   # optional: pull the tweaks' releases
 python3 scripts/build.py
 python3 -m http.server -d _site 8000
 ```

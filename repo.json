@@ -3,5 +3,8 @@
   "name": "Flame's Repo",
   "description": "Jailbreak tweaks by flameaway.",
   "github": "https://github.com/flameaway",
-  "tintColor": "#C04BE0"
+  "tintColor": "#C04BE0",
+  "sources": [
+    "flameaway/peel"
+  ]
 }

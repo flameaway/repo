@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Build the APT repo into _site/.
 
-Scans debs/ with dpkg-scanpackages, adds depiction and icon fields, writes
-Packages (plain and compressed), Release, Sileo native depictions and
-packages.json for the website, then copies the site, debs and artwork.
+Scans debs/ (plus _sources/debs/ from sync.py) with dpkg-scanpackages, adds
+depiction and icon fields, writes Packages (plain and compressed), Release,
+Sileo native depictions and packages.json for the website, then copies the
+site, debs and artwork. Listings come from meta/ and _sources/meta/.
 
 Usage: python3 scripts/build.py [--url https://example.com/repo/]
 """
@@ -23,6 +24,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "_site"
+# Packages added by hand, then the ones sync.py pulled from tweak releases.
+DEB_DIRS = [ROOT / "debs", ROOT / "_sources" / "debs"]
+META_DIRS = [ROOT / "meta", ROOT / "_sources" / "meta"]
 
 
 def parse_stanzas(text):
@@ -86,13 +90,17 @@ def compare_versions(a, b):
 version_key = functools.cmp_to_key(compare_versions)
 
 
+def meta_file(package, name):
+    return next((d / package / name for d in META_DIRS if (d / package / name).exists()), None)
+
+
 def load_meta(package):
-    path = ROOT / "meta" / package / "info.json"
-    return json.loads(path.read_text()) if path.exists() else {}
+    path = meta_file(package, "info.json")
+    return json.loads(path.read_text()) if path else {}
 
 
 def asset(base, package, name):
-    return f"{base}meta/{package}/{name}" if (ROOT / "meta" / package / name).exists() else None
+    return f"{base}meta/{package}/{name}" if meta_file(package, name) else None
 
 
 def sileo_depiction(base, repo, pkg, versions, meta):
@@ -146,13 +154,17 @@ def main():
     if OUT.exists():
         shutil.rmtree(OUT)
     shutil.copytree(ROOT / "site", OUT)
-    shutil.copytree(ROOT / "debs", OUT / "debs")
-    if (ROOT / "meta").exists():
-        shutil.copytree(ROOT / "meta", OUT / "meta", ignore=shutil.ignore_patterns("info.json"))
+    (OUT / "debs").mkdir()
+    for d in DEB_DIRS:
+        for deb in sorted(d.glob("*.deb")) if d.exists() else []:
+            shutil.copy2(deb, OUT / "debs")
+    for d in META_DIRS:
+        if d.exists():
+            shutil.copytree(d, OUT / "meta", ignore=shutil.ignore_patterns("info.json"), dirs_exist_ok=True)
     (OUT / ".nojekyll").touch()
     (OUT / "depictions").mkdir()
 
-    scanned = subprocess.run(["dpkg-scanpackages", "-m", "debs", "/dev/null"], cwd=ROOT,
+    scanned = subprocess.run(["dpkg-scanpackages", "-m", "debs", "/dev/null"], cwd=OUT,
                              check=True, capture_output=True, text=True).stdout
     stanzas = parse_stanzas(scanned)
     stanzas.sort(key=lambda s: (s["Package"], version_key(s["Version"])))
