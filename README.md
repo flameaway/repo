@@ -22,7 +22,7 @@ gh api repos/flameaway/peel/releases --jq '.[] | "\(.tag_name): \(.assets[] | se
 
 The sync keeps the `.deb`s it has already fetched in `.asset-cache/` (cached between workflow runs), so it adds at most one download per release. This needs a package manager that accepts full URLs in `Filename`, which Sileo and Zebra do; plain `apt` on the command line doesn't.
 
-To publish right away instead of waiting for the hourly run, start the workflow from the Actions tab, or send a `tweak-released` [repository dispatch](https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event) from the tweak's own release workflow (that needs an access token with access to this repo).
+There's no schedule: the workflow runs on a push to `main`, when started from the Actions tab (or `gh workflow run pages.yml -R flameaway/repo`, which peel's `make release` does after creating a release), or on a `tweak-released` [repository dispatch](https://docs.github.com/en/rest/repos/repos#create-a-repository-dispatch-event) from a tweak's own release workflow (that needs an access token with access to this repo). A tweak added to `sources` needs one of these in its release step, or its releases won't go out until the next run.
 
 ### Adding a tweak
 

@@ -3,10 +3,8 @@ name: Build and deploy repo
 on:
   push:
     branches: [main]
-  # Picks up new releases of the tweaks in repo.json's "sources".
-  schedule:
-    - cron: "17 * * * *"
-  # A tweak's release workflow can trigger this right away instead of waiting for the schedule.
+  # No schedule: a tweak's release starts this (peel's `make release` runs `gh workflow run pages.yml`), or a
+  # tweak's own release workflow can send a tweak-released repository dispatch.
   repository_dispatch:
     types: [tweak-released]
   workflow_dispatch:
@@ -30,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dpkg-dev and zstd
         run: sudo apt-get update -qq && sudo apt-get install -y -qq dpkg-dev zstd
-      # Release .debs already downloaded, so the hourly sync doesn't add to their download counts.
+      # Release .debs already downloaded, so rebuilds don't add to their download counts.
       - id: restore-assets
         uses: actions/cache/restore@v4
         with:

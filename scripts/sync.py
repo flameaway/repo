@@ -12,7 +12,7 @@ versions of those, so a renamed package's old ID drops out.
 Each .deb's release download URL goes in _sources/urls.json, so build.py points
 the Packages file straight at GitHub and the releases' download counts track
 installs. The .debs themselves are kept in .asset-cache/ by asset ID (the
-workflow caches it between runs), so the hourly sync doesn't add downloads.
+workflow caches it between runs), so rebuilds don't add downloads.
 
 build.py then publishes these alongside anything in debs/ and meta/.
 
